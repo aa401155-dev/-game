@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>今天吃什麼？公主廢萌人生模擬器 🌸</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti for Visual Cheer without Audio -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+        }
+
+        /* 呼吸動畫 */
+        @keyframes squishIdle {
+            0%, 100% { transform: scale(1, 1); }
+            50% { transform: scale(1.05, 0.95) translateY(3px); }
+        }
+
+        @keyframes wobbleEffect {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-6deg) scale(1.03); }
+            75% { transform: rotate(6deg) scale(0.97); }
+        }
+
+        @keyframes floatEmoji {
+            0% { opacity: 1; transform: translateY(0) scale(0.8); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+        }
+
+        .princess-body {
+            animation: squishIdle 3.2s ease-in-out infinite;
+            transform-origin: bottom center;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .wobbling {
+            animation: wobbleEffect 0.45s ease-in-out;
+        }
+
+        .float-reaction {
+            animation: floatEmoji 1.1s ease-out forwards;
+            pointer-events: none;
+            position: absolute;
+            z-index: 40;
+        }
+
+        .choice-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .choice-btn:active {
+            transform: scale(0.97);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-rose-150 via-pink-50 to-amber-50 min-h-screen text-slate-700 flex flex-col items-center justify-between p-3 select-none overflow-x-hidden">
+
+    <!-- 主遊戲容器 -->
+    <div class="w-full max-w-md mx-auto flex flex-col flex-1 items-center justify-between relative pb-3">
+
+        <!-- 頂部資訊欄：天數進度 + 屬性儀表板 -->
+        <header class="w-full text-center mt-1">
+            <!-- 天數與時段標籤 -->
+            <div class="flex items-center justify-between px-2 mb-1.5">
+                <div class="inline-flex items-center gap-1.5 bg-white/90 border border-pink-200 px-3 py-1 rounded-full shadow-xs text-xs font-black text-rose-500">
+                    <span id="turn-day">第 1 天</span>
+                    <span>•</span>
+                    <span id="turn-period" class="text-rose-600">早午餐難題</span>
+                </div>
+                <div class="text-[11px] font-bold text-rose-400 bg-pink-150/60 px-2.5 py-1 rounded-full">
+                    進度: <span id="turn-progress">1 / 14</span>
+                </div>
+            </div>
+
+            <!-- 四大屬性儀表板 (體重、幸福、軟爛、男友專寵) -->
+            <div class="grid grid-cols-4 gap-1.5 bg-white/90 backdrop-blur-md p-2.5 rounded-2xl shadow-sm border border-pink-100">
+                <!-- 體重 -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-bold">圓潤體重</span>
+                    <span id="stat-weight" class="text-xs sm:text-sm font-black text-rose-500">46.0 <span class="text-[9px] font-normal">kg</span></span>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                        <div id="bar-weight" class="bg-rose-400 h-full rounded-full transition-all duration-300" style="width: 30%"></div>
+                    </div>
+                </div>
+                <!-- 幸福心晴 -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-bold">幸福心晴</span>
+                    <span id="stat-happiness" class="text-xs sm:text-sm font-black text-pink-500">80%</span>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                        <div id="bar-happiness" class="bg-pink-400 h-full rounded-full transition-all duration-300" style="width: 80%"></div>
+                    </div>
+                </div>
+                <!-- 軟爛度 -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-bold">軟爛程度</span>
+                    <span id="stat-laziness" class="text-xs sm:text-sm font-black text-amber-500">45%</span>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                        <div id="bar-laziness" class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: 45%"></div>
+                    </div>
+                </div>
+                <!-- 男友專寵度 -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-bold">男友專寵</span>
+                    <span id="stat-spoiled" class="text-xs sm:text-sm font-black text-purple-500">70%</span>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                        <div id="bar-spoiled" class="bg-purple-400 h-full rounded-full transition-all duration-300" style="width: 70%"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 中間：小公主視覺狀態舞台 -->
+        <div id="princess-stage" class="relative w-full max-w-[280px] h-52 flex items-end justify-center my-1">
+            <!-- 地毯陰影 (隨體重縮放) -->
+            <div id="shadow" class="absolute bottom-1 w-36 h-7 bg-rose-900/10 rounded-full filter blur-xs transition-all duration-500"></div>
+
+            <!-- SVG 公主外觀 -->
+            <div id="princess-avatar" class="princess-body relative w-44 h-50 flex items-center justify-center">
+                <svg viewBox="0 0 200 220" class="w-full h-full drop-shadow-sm overflow-visible">
+                    <!-- 皇冠 -->
+                    <g id="crown" transform="translate(0, 0)">
+                        <path d="M78 50 L88 35 L100 48 L112 35 L122 50 Z" fill="#FBBF24" stroke="#F59E0B" stroke-width="2" stroke-linejoin="round"/>
+                        <circle cx="88" cy="35" r="2.5" fill="#EF4444"/>
+                        <circle cx="100" cy="48" r="2.5" fill="#3B82F6"/>
+                        <circle cx="112" cy="35" r="2.5" fill="#EC4899"/>
+                    </g>
+
+                    <!-- 長髮後台 -->
+                    <path id="hair-back" d="M50 80 Q35 140 50 180 Q100 195 150 180 Q165 140 150 80 Z" fill="#92400E" opacity="0.85"/>
+
+                    <!-- 膨脹肚肚主體 (隨體重動態改半徑 rx, ry) -->
+                    <ellipse id="body-belly" cx="100" cy="145" rx="38" ry="36" fill="#FDE047" stroke="#F59E0B" stroke-width="3"/>
+                    <path id="belly-dress" d="M70 135 Q100 155 130 135" fill="none" stroke="#F43F5E" stroke-width="3" stroke-linecap="round"/>
+
+                    <!-- 雙手 -->
+                    <ellipse id="hand-left" cx="58" cy="140" rx="9" ry="9" fill="#FFEDD5" stroke="#FDBA74" stroke-width="2"/>
+                    <ellipse id="hand-right" cx="142" cy="140" rx="9" ry="9" fill="#FFEDD5" stroke="#FDBA74" stroke-width="2"/>
+
+                    <!-- 短腿 -->
+                    <ellipse id="leg-left" cx="82" cy="180" rx="10" ry="8" fill="#FDBA74"/>
+                    <ellipse id="leg-right" cx="118" cy="180" rx="10" ry="8" fill="#FDBA74"/>
+
+                    <!-- 膨潤小臉蛋 -->
+                    <ellipse id="face" cx="100" cy="95" rx="42" ry="38" fill="#FFEDD5" stroke="#FDBA74" stroke-width="2.5"/>
+
+                    <!-- 瀏海 -->
+                    <path d="M58 85 Q75 60 100 62 Q125 60 142 85 Q125 78 100 80 Q75 78 58 85 Z" fill="#78350F"/>
+
+                    <!-- 腮紅 (隨幸福與熱量膨脹) -->
+                    <circle id="blush-left" cx="72" cy="106" r="8" fill="#FDA4AF" opacity="0.85"/>
+                    <circle id="blush-right" cx="128" cy="106" r="8" fill="#FDA4AF" opacity="0.85"/>
+
+                    <!-- 眼睛 (水汪汪 / 瞇瞇笑眼 / 委屈) -->
+                    <g id="eyes-open">
+                        <circle cx="82" cy="96" r="5" fill="#3E2723"/>
+                        <circle cx="80" cy="94" r="1.8" fill="#FFFFFF"/>
+                        <circle cx="118" cy="96" r="5" fill="#3E2723"/>
+                        <circle cx="116" cy="94" r="1.8" fill="#FFFFFF"/>
+                    </g>
+                    <g id="eyes-happy" class="hidden">
+                        <path d="M76 96 Q82 90 88 96" fill="none" stroke="#3E2723" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M112 96 Q118 90 124 96" fill="none" stroke="#3E2723" stroke-width="3" stroke-linecap="round"/>
+                    </g>
+
+                    <!-- 嘴巴 -->
+                    <path id="mouth" d="M94 108 Q100 114 106 108" fill="none" stroke="#E11D48" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 下方：核心事件決策卡片 -->
+        <main class="w-full bg-white/95 backdrop-blur-md rounded-3xl p-4 sm:p-5 shadow-lg border-2 border-rose-200 flex flex-col justify-between min-h-[260px] relative">
+            
+            <!-- 事件標題與情境描述 -->
+            <div>
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span id="event-icon" class="text-2xl">🧋</span>
+                    <h2 id="event-title" class="text-base sm:text-lg font-black text-rose-600">下午三點的罪惡揪團</h2>
+                </div>
+                <p id="event-desc" class="text-xs sm:text-sm text-slate-600 leading-relaxed font-bold bg-rose-50/70 p-3 rounded-2xl border border-rose-100 min-h-[64px] flex items-center">
+                    辦公室同事突然大喊：「有沒有人要喝 50 嵐？滿 300 外送差一杯！」
+                </p>
+            </div>
+
+            <!-- 選項按鈕區 (動態生成 2~3 個情境選項) -->
+            <div id="choices-container" class="flex flex-col gap-2 mt-3">
+                <!-- 由 JS 動態注入選項按鈕 -->
+            </div>
+
+            <!-- 上一回合結果反饋提示 (選完後彈出文字) -->
+            <div id="feedback-panel" class="hidden flex-col items-center justify-center p-3 bg-pink-100/80 rounded-2xl border border-pink-200 mt-2 text-center animate-in fade-in duration-200">
+                <p id="feedback-text" class="text-xs font-bold text-rose-700 leading-tight mb-2">「妳選擇了全糖奶蓋，當場幸福到融化！」</p>
+                <button id="btn-next-turn" class="w-full py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-md active:scale-95 transition">
+                    繼續過生活 ⏩
+                </button>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- 結局頒獎結算 Modal (7天後自動觸發) -->
+    <div id="ending-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl border-4 border-rose-300 text-center relative overflow-hidden animate-in zoom-in-95 duration-200">
+            <div class="text-5xl mb-1" id="ending-icon">👑</div>
+            <h3 class="text-xs font-black text-rose-400 tracking-wider">今日特封聖旨 📜</h3>
+            <h2 id="ending-title" class="text-xl font-black text-rose-600 mt-0.5 mb-2">極限充氣軟爛麻糬仙子</h2>
+
+            <div class="bg-rose-50 rounded-2xl p-3.5 border border-rose-200 text-left text-xs space-y-1.5 my-3">
+                <p class="text-slate-600 font-bold">公主評語：<span id="ending-summary" class="text-rose-600 font-normal">這段時間妳徹底體現了熱量與廢萌即是正義！</span></p>
+                <div class="border-t border-rose-200 pt-2 grid grid-cols-2 gap-1 text-[11px] font-bold text-slate-500">
+                    <div>最終體重：<span id="end-weight" class="text-rose-600">55.2 kg</span></div>
+                    <div>幸福指數：<span id="end-happy" class="text-pink-600">95%</span></div>
+                    <div>軟爛指數：<span id="end-lazy" class="text-amber-600">88%</span></div>
+                    <div>男友專寵：<span id="end-spoiled" class="text-purple-600">100%</span></div>
+                </div>
+            </div>
+
+            <!-- 男友專屬奉納條款 -->
+            <div class="bg-gradient-to-r from-amber-50 to-pink-50 border-2 border-dashed border-rose-300 rounded-xl p-2.5 text-center mb-3">
+                <p class="text-[11px] font-bold text-rose-600">💌 男友承諾條款：此截圖永久生效，憑圖可任選一餐大餐且男友買單！</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btn-restart" class="w-full py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black rounded-xl text-xs sm:text-sm shadow-md active:scale-95 transition">
+                    🔄 重新輪迴（再玩一次）
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 視覺小通知 Toast (無聲) -->
+    <div id="toast" class="fixed top-3 bg-slate-800/90 text-white text-xs px-3.5 py-2 rounded-full shadow-lg pointer-events-none transition-all duration-300 opacity-0 -translate-y-2 z-50 flex items-center gap-1.5">
+        <span id="toast-icon">✨</span>
+        <span id="toast-msg">提示訊息</span>
+    </div>
+
+    <script>
+        /* ========================================================
+           1. 狀態管理 (純視覺無音訊)
+           ======================================================== */
+        let state = {
+            day: 1,
+            turnIndex: 0,
+            maxTurns: 14, // 7 天，每天早晚 2 回合
+            weight: 46.0,
+            happiness: 80,
+            laziness: 45,
+            spoiled: 70
+        };
+
+        /* ========================================================
+           2. 豐富的日常事件題庫 (爆笑、真實情侶日常)
+           ======================================================== */
+        const EVENTS_POOL = [
+            {
+                period: "早午餐難題",
+                title: "假日的甦醒儀式",
+                icon: "🍳",
+                desc: "醒來已經是中午 11:30，肚子餓得咕嚕叫，但被窩有一種神秘的重力把妳牢牢吸住...",
+                choices: [
+                    {
+                        text: "使喚男友：「寶寶～我餓到動不了，我想吃早午餐」",
+                        weight: +0.6, happy: +20, lazy: +15, spoiled: +20,
+                        reply: "男友任勞任怨買了法式吐司拼盤端到床前，甚至把草莓蒂頭都去掉了！🥰"
+                    },
+                    {
+                        text: "意志力起床！假裝自律吃一顆水煮蛋跟無糖豆漿",
+                        weight: -0.4, happy: -10, lazy: -10, spoiled: 0,
+                        reply: "吃完感覺心靈非常空虛，靈魂好像還留在被窩裡沒有醒來...🥺"
+                    },
+                    {
+                        text: "繼續躺著滑手機看短影音，撐到下午兩點再說",
+                        weight: -0.1, happy: +5, lazy: +25, spoiled: -5,
+                        reply: "在床上翻滾了三個小時，成功化身為一條無憂無慮的棉被肉捲！🦥"
+                    }
+                ]
+            },
+            {
+                period: "下午茶摸魚",
+                title: "罪惡的飲料揪團",
+                icon: "🧋",
+                desc: "同事突然在群組大喊：「有沒有人要喝奶茶？滿 300 免外送費差一杯！」",
+                choices: [
+                    {
+                        text: "喝水裝沒看到 (但三分鐘後偷偷吃了同事的洋芋片)",
+                        weight: +0.3, happy: +5, lazy: +5, spoiled: 0,
+                        reply: "雖然省了一杯飲料錢，但洋芋片的熱量一個都沒落下！🍟"
+                    },
+                    {
+                        text: "波霸烏龍奶茶微糖微冰！自欺欺人當作熱量只有一半",
+                        weight: +0.9, happy: +25, lazy: +5, spoiled: 0,
+                        reply: "吸進大顆波霸的那一瞬間，整個下午的工作壓力瞬間蒸發！✨"
+                    },
+                    {
+                        text: "截圖菜單傳給男友：「這家好像很好喝，下班買給我好不好～」",
+                        weight: +0.8, happy: +30, lazy: +10, spoiled: +25,
+                        reply: "男友立刻回覆：「收到！微糖少冰對不對？下班準時送到！」💖"
+                    }
+                ]
+            },
+            {
+                period: "晚餐人生十字路口",
+                title: "男友問：「今天吃什麼？」",
+                icon: "🍲",
+                desc: "下班見面，男友認真看著妳問出了千古難題：「今天吃什麼？我都聽妳的！」",
+                choices: [
+                    {
+                        text: "「隨便都可以呀～」（男友提議三家後全部被妳打槍）",
+                        weight: +0.2, happy: +10, lazy: +10, spoiled: +15,
+                        reply: "最後男友精準猜中了妳其實想吃的麻辣燙，化險為夷！🎉"
+                    },
+                    {
+                        text: "「我要吃高級和牛燒肉／海鮮丼！今天工作好累要補一下！」",
+                        weight: +1.4, happy: +35, lazy: +5, spoiled: +20,
+                        reply: "油脂在嘴裡爆開！由男友買單的燒肉美味程度直接翻三倍！🥩"
+                    },
+                    {
+                        text: "「我要減肥，我們吃生菜沙拉就好了。」",
+                        weight: -0.6, happy: -15, lazy: -10, spoiled: 0,
+                        reply: "吃草吃得面如死灰，一邊嚼一邊盯著男友碗裡的排骨吞口水...😭"
+                    }
+                ]
+            },
+            {
+                period: "深夜靈魂拷問",
+                title: "深夜 11:30 的鹹酥雞香氣",
+                icon: "🍗",
+                desc: "正準備去刷牙睡覺，男友突然幽幽地問：「要不要吃一點鹹酥雞？加九層塔跟蒜頭...」",
+                choices: [
+                    {
+                        text: "「我只吃一口喔！」（結果把魷魚跟甜不辣吃光）",
+                        weight: +1.2, happy: +30, lazy: +10, spoiled: +10,
+                        reply: "女生的「一口」是物理學上的未解之謎，吃飽滿足地去睡覺！🤤"
+                    },
+                    {
+                        text: "意志堅定拒絕！喝一杯溫水戴上眼罩立刻躺平",
+                        weight: -0.3, happy: -10, lazy: 0, spoiled: 0,
+                        reply: "在床上翻來覆去，閉上眼睛腦袋裡全部都是炸雞排在跳舞...🛌"
+                    },
+                    {
+                        text: "「好啊！但你要幫我擦嘴巴跟吹頭髮～」",
+                        weight: +1.5, happy: +40, lazy: +25, spoiled: +30,
+                        reply: "男友全程伺候吃宵夜＋吹頭髮，妳只負責張嘴跟當小廢物！👑"
+                    }
+                ]
+            },
+            {
+                period: "客廳沙發地縛靈",
+                title: "遙控器在兩公尺外",
+                icon: "📺",
+                desc: "好不容易在沙發上找到了最舒服的側躺姿勢，卻發現冷氣遙控器在茶几遠端...",
+                choices: [
+                    {
+                        text: "使出心電感應＋呼喚大法：「寶包～～～（拉長音）」",
+                        weight: 0, happy: +15, lazy: +20, spoiled: +25,
+                        reply: "男友從廚房飛奔過來把遙控器遞上，並順手塞了顆剝好的橘子！🍊"
+                    },
+                    {
+                        text: "用腳趾頭試圖把拖鞋拋過去把遙控器勾過來",
+                        weight: 0, happy: +5, lazy: +15, spoiled: 0,
+                        reply: "結果拖鞋飛到了沙發底下，差點抽筋，最後還是認命爬起來拿。🤣"
+                    },
+                    {
+                        text: "算了不吹了，忍耐是公主的修養，繼續滑手機",
+                        weight: 0, happy: 0, lazy: +30, spoiled: -5,
+                        reply: "成功進化成跟沙發融為一體的地縛靈，動一根手指頭都算輸！🛋️"
+                    }
+                ]
+            },
+            {
+                period: "逛街突發狀況",
+                title: "試衣間裡的殘酷現實",
+                icon: "👗",
+                desc: "跟男友逛百貨公司，看上一件超級仙氣的收腰連身洋裝進去試穿...",
+                choices: [
+                    {
+                        text: "拉鍊卡在肚子拉不上，衝出來對男友撒嬌：「這版型做壞了啦！」",
+                        weight: 0, happy: +10, lazy: 0, spoiled: +20,
+                        reply: "男友超有求生欲立刻說：「對！這家剪裁超怪，我們寶寶身材這麼好！」👏"
+                    },
+                    {
+                        text: "深受打擊，走出店門立刻跟男友說：「今晚不准吃澱粉！」",
+                        weight: -0.5, happy: -10, lazy: -10, spoiled: 0,
+                        reply: "晚餐只吃了豆腐，但半夜忍不住偷挖了兩口哈根達斯冰淇淋。🍨"
+                    },
+                    {
+                        text: "果斷買大一號，舒適又顯瘦，再拐男友去吃舒芙蕾鬆餅！",
+                        weight: +1.0, happy: +30, lazy: +10, spoiled: +15,
+                        reply: "穿好看衣服就是要去吃好吃的！心情好比什麼都重要！🥞"
+                    }
+                ]
+            },
+            {
+                period: "週末甜蜜約會",
+                title: "今天出門還是躺平？",
+                icon: "🚗",
+                desc: "好不容易迎來週六，窗外天氣超級好，男友問要不要開車去海邊踏青拍照？",
+                choices: [
+                    {
+                        text: "「我要化精緻全妝出門！你要幫我拍 100 張美照挑 1 張！」",
+                        weight: -0.3, happy: +25, lazy: -15, spoiled: +20,
+                        reply: "男友在海邊蹲了半小時化身專業攝影師，終於產出一張奇蹟美照發限動！📸"
+                    },
+                    {
+                        text: "「太熱了會脫妝啦～叫外送披薩在家吹冷氣看 Netflix 啦！」",
+                        weight: +1.1, happy: +30, lazy: +30, spoiled: +10,
+                        reply: "兩個人窩在沙發上一口披薩一口可樂，整天連睡衣都沒換，極致幸福！🍕"
+                    }
+                ]
+            }
+        ];
+
+        /* ========================================================
+           3. DOM 元件綁定
+           ======================================================== */
+        const turnDay = document.getElementById('turn-day');
+        const turnPeriod = document.getElementById('turn-period');
+        const turnProgress = document.getElementById('turn-progress');
+
+        const statWeight = document.getElementById('stat-weight');
+        const statHappiness = document.getElementById('stat-happiness');
+        const statLaziness = document.getElementById('stat-laziness');
+        const statSpoiled = document.getElementById('stat-spoiled');
+
+        const barWeight = document.getElementById('bar-weight');
+        const barHappiness = document.getElementById('bar-happiness');
+        const barLaziness = document.getElementById('bar-laziness');
+        const barSpoiled = document.getElementById('bar-spoiled');
+
+        const princessAvatar = document.getElementById('princess-avatar');
+        const bodyBelly = document.getElementById('body-belly');
+        const face = document.getElementById('face');
+        const eyesOpen = document.getElementById('eyes-open');
+        const eyesHappy = document.getElementById('eyes-happy');
+        const mouth = document.getElementById('mouth');
+        const shadow = document.getElementById('shadow');
+        const blushLeft = document.getElementById('blush-left');
+        const blushRight = document.getElementById('blush-right');
+
+        const eventIcon = document.getElementById('event-icon');
+        const eventTitle = document.getElementById('event-title');
+        const eventDesc = document.getElementById('event-desc');
+        const choicesContainer = document.getElementById('choices-container');
+        const feedbackPanel = document.getElementById('feedback-panel');
+        const feedbackText = document.getElementById('feedback-text');
+        const btnNextTurn = document.getElementById('btn-next-turn');
+
+        const endingModal = document.getElementById('ending-modal');
+        const endingIcon = document.getElementById('ending-icon');
+        const endingTitle = document.getElementById('ending-title');
+        const endingSummary = document.getElementById('ending-summary');
+        const endWeight = document.getElementById('end-weight');
+        const endHappy = document.getElementById('end-happy');
+        const endLazy = document.getElementById('end-lazy');
+        const endSpoiled = document.getElementById('end-spoiled');
+        const btnRestart = document.getElementById('btn-restart');
+
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+        const toastIcon = document.getElementById('toast-icon');
+
+        /* ========================================================
+           4. 動態 SVG 外觀演算 (隨體重與幸福感形變)
+           ======================================================== */
+        function updateVisuals() {
+            // 體重 42kg ~ 75kg 之間的肚皮縮放
+            const clampedWeight = Math.max(40, Math.min(80, state.weight));
+            const bellyRx = 38 + (clampedWeight - 46) * 1.1;
+            const bellyRy = 36 + (clampedWeight - 46) * 0.95;
+            const faceRx = 42 + (clampedWeight - 46) * 0.35;
+            const shadowWidth = 140 + (clampedWeight - 46) * 2.2;
+            const blushRadius = 8 + (state.happiness > 70 ? 2 : 0);
+
+            bodyBelly.setAttribute('rx', Math.max(30, bellyRx));
+            bodyBelly.setAttribute('ry', Math.max(28, bellyRy));
+            face.setAttribute('rx', Math.max(36, faceRx));
+            shadow.style.width = `${shadowWidth}px`;
+            blushLeft.setAttribute('r', blushRadius);
+            blushRight.setAttribute('r', blushRadius);
+
+            // 數值更新
+            statWeight.innerHTML = `${state.weight.toFixed(1)} <span class="text-[9px] font-normal">kg</span>`;
+            statHappiness.textContent = `${Math.round(state.happiness)}%`;
+            statLaziness.textContent = `${Math.round(state.laziness)}%`;
+            statSpoiled.textContent = `${Math.round(state.spoiled)}%`;
+
+            // 進度條更新
+            const weightPercent = Math.min(100, Math.max(0, ((state.weight - 40) / 30) * 100));
+            barWeight.style.width = `${weightPercent}%`;
+            barHappiness.style.width = `${Math.min(100, Math.max(0, state.happiness))}%`;
+            barLaziness.style.width = `${Math.min(100, Math.max(0, state.laziness))}%`;
+            barSpoiled.style.width = `${Math.min(100, Math.max(0, state.spoiled))}%`;
+
+            // 表情切換 (幸福 / 傲嬌 / 委屈)
+            if (state.happiness >= 75) {
+                eyesOpen.classList.add('hidden');
+                eyesHappy.classList.remove('hidden');
+                mouth.setAttribute('d', 'M92 108 Q100 118 108 108'); // 微笑
+            } else if (state.happiness <= 40) {
+                eyesOpen.classList.remove('hidden');
+                eyesHappy.classList.add('hidden');
+                mouth.setAttribute('d', 'M94 114 Q100 108 106 114'); // 撇嘴
+            } else {
+                eyesOpen.classList.remove('hidden');
+                eyesHappy.classList.add('hidden');
+                mouth.setAttribute('d', 'M94 108 Q100 114 106 108');
+            }
+        }
+
+        function showVisualToast(msg, icon = '✨') {
+            toastMsg.textContent = msg;
+            toastIcon.textContent = icon;
+            toast.classList.remove('opacity-0', '-translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-2');
+            }, 1800);
+        }
+
+        function spawnReactionEmoji(emoji) {
+            const el = document.createElement('div');
+            el.className = 'float-reaction text-2xl font-bold';
+            el.textContent = emoji;
+            el.style.left = `${50 + (Math.random() * 40 - 20)}%`;
+            el.style.top = '40%';
+            document.getElementById('princess-stage').appendChild(el);
+            setTimeout(() => el.remove(), 1100);
+        }
+
+        /* ========================================================
+           5. 回合事件循環處理
+           ======================================================== */
+        let currentEvent = null;
+
+        function loadTurn() {
+            // 計算當前天數 (每 2 回合算一天)
+            const dayNum = Math.floor(state.turnIndex / 2) + 1;
+            state.day = dayNum;
+
+            turnDay.textContent = `第 ${dayNum} 天`;
+            turnProgress.textContent = `${state.turnIndex + 1} / ${state.maxTurns}`;
+
+            // 從題庫抽一題 (循環輪播)
+            const eventData = EVENTS_POOL[state.turnIndex % EVENTS_POOL.length];
+            currentEvent = eventData;
+
+            turnPeriod.textContent = eventData.period;
+            eventIcon.textContent = eventData.icon;
+            eventTitle.textContent = eventData.title;
+            eventDesc.textContent = eventData.desc;
+
+            // 清空並生成選項
+            choicesContainer.innerHTML = '';
+            feedbackPanel.classList.add('hidden');
+            choicesContainer.classList.remove('hidden');
+
+            eventData.choices.forEach((choice, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn w-full text-left p-2.5 sm:p-3 rounded-2xl bg-rose-50/80 hover:bg-rose-100 border border-rose-200 text-xs sm:text-sm font-bold text-slate-700 shadow-2xs flex items-center justify-between gap-2';
+                
+                // 標記預估影響
+                const effectSign = choice.weight > 0 ? '🍟' : (choice.weight < 0 ? '🥗' : '💤');
+
+                btn.innerHTML = `
+                    <span class="flex-1">${choice.text}</span>
+                    <span class="text-xs opacity-75">${effectSign}</span>
+                `;
+
+                btn.addEventListener('click', () => chooseOption(choice));
+                choicesContainer.appendChild(btn);
+            });
+
+            updateVisuals();
+        }
+
+        function chooseOption(choice) {
+            // 彈動動畫
+            princessAvatar.classList.add('wobbling');
+            setTimeout(() => princessAvatar.classList.remove('wobbling'), 450);
+
+            // 飄浮表情
+            spawnReactionEmoji(choice.happy > 0 ? '💖' : (choice.weight > 0 ? '🍗' : '✨'));
+
+            // 應用數值改變
+            state.weight = Math.max(38, state.weight + choice.weight);
+            state.happiness = Math.max(0, Math.min(100, state.happiness + choice.happy));
+            state.laziness = Math.max(0, Math.min(100, state.laziness + choice.lazy));
+            state.spoiled = Math.max(0, Math.min(100, state.spoiled + choice.spoiled));
+
+            // 切換成反饋面板
+            choicesContainer.classList.add('hidden');
+            feedbackPanel.classList.remove('hidden');
+            feedbackText.textContent = choice.reply;
+
+            updateVisuals();
+            showVisualToast('做出選擇！狀態已即時改變～');
+        }
+
+        btnNextTurn.addEventListener('click', () => {
+            state.turnIndex++;
+            if (state.turnIndex >= state.maxTurns) {
+                showEnding();
+            } else {
+                loadTurn();
+            }
+        });
+
+        /* ========================================================
+           6. 結局系統與聖旨卡片生成
+           ======================================================== */
+        function showEnding() {
+            // 灑彩帶特效 (純視覺，無聲音)
+            try {
+                confetti({
+                    particleCount: 70,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#f43f5e', '#fb7185', '#fde047', '#a855f7']
+                });
+            } catch(e) {}
+
+            // 判定結局頭銜
+            let title = '被男友寵上天的圓滾滾公主 👑';
+            let icon = '👸';
+            let summary = '在這 7 天的生活裡，妳完美示範了什麼叫作「有人寵就是任性」！肚肚軟綿綿的，男友每天看到妳都想捏一把！';
+
+            if (state.weight > 54 && state.laziness > 70) {
+                title = '極限充氣·軟爛麻糬仙子 🍡';
+                icon = '🍡';
+                summary = '妳已經完全放棄跟地心引力對抗，成功與沙發達成共生關係！這就是幸福肉肉的最高境界！';
+            } else if (state.weight < 45 && state.happiness < 50) {
+                title = '自律減脂但靈魂乾癟的仙子 🥗';
+                icon = '🥦';
+                summary = '雖然成功守住了體重計上的數字，但半夜盯著美食影片流口水的心情...辛苦妳啦！今天快去吃大餐補償！';
+            } else if (state.spoiled >= 85) {
+                title = '宇宙第一傲嬌·全糖小祖宗 💖';
+                icon = '🎀';
+                summary = '男友對妳的順從度突破天際！動動手指就能獲得熱水、宵夜與按摩，這輩子請繼續幸福地廢下去！';
+            } else if (state.laziness >= 80) {
+                title = '躺平大師·客廳沙發地縛靈 🛋️';
+                icon = '🦥';
+                summary = '能躺著絕對不坐著，能動嘴絕對不動手！男友已經習慣隨時把妳滾到舒服的位置了！';
+            }
+
+            endingIcon.textContent = icon;
+            endingTitle.textContent = title;
+            endingSummary.textContent = summary;
+
+            endWeight.textContent = `${state.weight.toFixed(1)} kg`;
+            endHappy.textContent = `${Math.round(state.happiness)}%`;
+            endLazy.textContent = `${Math.round(state.laziness)}%`;
+            endSpoiled.textContent = `${Math.round(state.spoiled)}%`;
+
+            endingModal.classList.remove('hidden');
+        }
+
+        btnRestart.addEventListener('click', () => {
+            endingModal.classList.add('hidden');
+            state = {
+                day: 1,
+                turnIndex: 0,
+                maxTurns: 14,
+                weight: 46.0,
+                happiness: 80,
+                laziness: 45,
+                spoiled: 70
+            };
+            loadTurn();
+            showVisualToast('時光倒流！重新開始新的一週 🌸');
+        });
+
+        // 戳戳公主觸發無聲動作
+        document.getElementById('princess-stage').addEventListener('click', () => {
+            princessAvatar.classList.add('wobbling');
+            setTimeout(() => princessAvatar.classList.remove('wobbling'), 400);
+            spawnReactionEmoji('💖');
+            showVisualToast('公主：「戳什麼戳～快叫我男友帶我去吃好料的！」');
+        });
+
+        // 啟動首回合
+        loadTurn();
+    </script>
+</body>
+</html>
